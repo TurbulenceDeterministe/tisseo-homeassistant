@@ -7,17 +7,10 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_API_KEY
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import (
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-    TextSelector,
-    TextSelectorType,
-)
 
 from .api_client import TisseoAPIError, TisseoAuthError, TisseoClient
 from .const import (
@@ -50,9 +43,7 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
         self._search_results: list[dict] = []
         self._all_lines: list[dict] = []
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -80,17 +71,13 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_API_KEY): TextSelector(
-                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                    ),
+                    vol.Required(CONF_API_KEY): str,
                 }
             ),
             errors=errors,
         )
 
-    async def async_step_stops(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_stops(self, user_input: dict[str, Any] | None = None):
         """Handle stop selection."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -111,7 +98,10 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
                         errors["base"] = "cannot_connect"
                     else:
                         options = []
-                        for place in places.get("places", []):
+                        raw_places = places.get("places", [])
+                        if isinstance(raw_places, dict):
+                            raw_places = [raw_places]
+                        for place in raw_places:
                             stop = place.get("stopArea", {})
                             if stop:
                                 options.append(
@@ -144,9 +134,7 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
-    async def async_step_pick_stop(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_pick_stop(self, user_input: dict[str, Any] | None = None):
         """Pick a stop from search results."""
         if user_input is not None:
             selected_id = user_input["stop_id"]
@@ -166,30 +154,28 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             return await self.async_step_stops()
 
-        options = self._search_results
+        options = {
+            o["value"]: o["label"]
+            for o in self._search_results
+        }
         return self.async_show_form(
             step_id="pick_stop",
             data_schema=vol.Schema(
                 {
-                    vol.Required("stop_id"): SelectSelector(
-                        SelectSelectorConfig(
-                            options=[
-                                {"label": o["label"], "value": o["value"]}
-                                for o in options
-                            ],
-                            mode=SelectSelectorMode.LIST,
-                        )
-                    ),
+                    vol.Required("stop_id"): vol.In(options),
                 }
             ),
         )
 
-    async def async_step_lines(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_lines(self, user_input: dict[str, Any] | None = None):
         """Handle line selection."""
         if user_input is not None:
-            selected = user_input.get("lines", [])
+            selected_raw = user_input.get("lines", "")
+            selected = [
+                s.strip()
+                for s in selected_raw.split(",")
+                if s.strip()
+            ]
             self._lines = [
                 {
                     CONF_LINE_ID: line_id,
@@ -224,29 +210,24 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
         except TisseoAPIError:
             self._all_lines = []
 
-        options = [
-            {"label": f"{line['shortName']} - {line['name']}", "value": line["id"]}
+        lines_text = "\n".join(
+            f"  {line['shortName']} - {line['name']} (ID: {line['id']})"
             for line in self._all_lines
-        ]
+        ) if self._all_lines else "  Aucune ligne disponible"
 
         return self.async_show_form(
             step_id="lines",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("lines", default=[]): SelectSelector(
-                        SelectSelectorConfig(
-                            options=options,
-                            mode=SelectSelectorMode.DROPDOWN,
-                            multiple=True,
-                        )
-                    ),
+                    vol.Optional("lines", default=""): str,
                 }
             ),
+            description_placeholders={
+                "lines_list": lines_text,
+            },
         )
 
-    async def async_step_journey(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_journey(self, user_input: dict[str, Any] | None = None):
         """Handle optional journey configuration."""
         if user_input is not None:
             origin = user_input.get(CONF_JOURNEY_ORIGIN, "").strip()

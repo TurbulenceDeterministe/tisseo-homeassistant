@@ -25,9 +25,9 @@
       },
       "lines": {
         "title": "Lignes à surveiller",
-        "description": "Sélectionnez les lignes pour lesquelles vous souhaitez être alerté en cas de perturbation.",
+        "description": "Entrez les IDs des lignes à surveiller, séparés par des virgules.\n\nLignes disponibles:\n{lines_list}\n\nExemple: line:38,line:72,line:61",
         "data": {
-          "lines": "Lignes"
+          "lines": "IDs des lignes (séparés par des virgules)"
         }
       },
       "journey": {
