@@ -7,7 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -17,7 +17,6 @@ from .const import (
     ATTR_ARRIVAL,
     ATTR_DATETIME,
     ATTR_DEPARTURE,
-    CONF_API_KEY,
     CONF_JOURNEY,
     CONF_JOURNEY_DESTINATION,
     CONF_JOURNEY_ORIGIN,
