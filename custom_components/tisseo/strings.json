@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tisséo - Clé API",
+        "description": "Entrez votre clé API Tisséo. Obtenez-la en envoyant un mail à opendata@tisseo.fr",
+        "data": {
+          "api_key": "Clé API"
+        }
+      },
+      "stops": {
+        "title": "Sélection des arrêts",
+        "description": "Arrêts sélectionnés : {selected_stops}",
+        "data": {
+          "search_term": "Rechercher un arrêt (3 caractères min)",
+          "done": "Terminer la sélection"
+        }
+      },
+      "pick_stop": {
+        "title": "Choisir un arrêt",
+        "description": "Sélectionnez l'arrêt à ajouter",
+        "data": {
+          "stop_id": "Arrêt"
+        }
+      },
+      "lines": {
+        "title": "Lignes à surveiller",
+        "description": "Sélectionnez les lignes pour lesquelles vous souhaitez être alerté en cas de perturbation.",
+        "data": {
+          "lines": "Lignes"
+        }
+      },
+      "journey": {
+        "title": "Itinéraire (optionnel)",
+        "description": "{info}",
+        "data": {
+          "journey_origin": "Départ",
+          "journey_destination": "Arrivée"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Échec de connexion",
+      "invalid_auth": "Clé API invalide",
+      "unknown": "Erreur inattendue",
+      "search_too_short": "La recherche doit faire au moins 3 caractères",
+      "no_results": "Aucun arrêt trouvé",
+      "no_stops_selected": "Veuillez sélectionner au moins un arrêt"
+    },
+    "abort": {
+      "already_configured": "Ce compte est déjà configuré"
+    }
+  }
+}

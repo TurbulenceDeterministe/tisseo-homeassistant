@@ -1,0 +1,25 @@
+calculate_journey:
+  name: Calculer un itinéraire
+  description: Calcule un itinéraire entre deux points via l'API Tisséo.
+  fields:
+    departure:
+      name: Départ
+      description: Lieu de départ
+      required: true
+      example: "Basso Cambo"
+      selector:
+        text:
+    arrival:
+      name: Arrivée
+      description: Lieu d'arrivée
+      required: true
+      example: "François Verdier"
+      selector:
+        text:
+    datetime:
+      name: Date et heure
+      description: Date et heure de départ (YYYY-MM-DD HH:MM)
+      required: false
+      example: "2024-06-29 15:00"
+      selector:
+        text:
