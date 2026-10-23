@@ -14,6 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api_client import TisseoAPIError, TisseoAuthError, TisseoClient
 from .const import (
+    CONF_JOURNEY,
     CONF_JOURNEY_DESTINATION,
     CONF_JOURNEY_ORIGIN,
     CONF_LINES,
@@ -47,7 +48,7 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            api_key = user_input[CONF_API_KEY]
+            api_key = user_input[CONF_API_KEY].strip()
             session = async_get_clientsession(self.hass)
             client = TisseoClient(api_key, session)
             try:
@@ -89,27 +90,23 @@ class TisseoConfigFlow(ConfigFlow, domain=DOMAIN):
                 search_term = user_input.get("search_term", "").strip()
                 if len(search_term) >= 3:
                     try:
-                        places = await self._client.get_places(
-                            term=search_term,
-                            number=10,
-                            display_only_stop_areas=True,
-                        )
-                    except TisseoAPIError:
+                        stops = await self._client.search_stop_areas(search_term)
+                    except TisseoAuthError:
+                        _LOGGER.warning("Stop search failed: API authentication rejected")
+                        errors["base"] = "invalid_auth"
+                    except TisseoAPIError as err:
+                        _LOGGER.warning("Stop search failed: %s", err)
                         errors["base"] = "cannot_connect"
                     else:
-                        options = []
-                        raw_places = places.get("places", [])
-                        if isinstance(raw_places, dict):
-                            raw_places = [raw_places]
-                        for place in raw_places:
-                            stop = place.get("stopArea", {})
-                            if stop:
-                                options.append(
-                                    {
-                                        "label": f"{stop.get('name')} ({stop.get('cityName', 'N/A')})",
-                                        "value": stop.get("id"),
-                                    }
-                                )
+                        options = [
+                            {
+                                "label": stop["name"] + (
+                                    f" ({stop['cityName']})" if stop["cityName"] else ""
+                                ),
+                                "value": stop["id"],
+                            }
+                            for stop in stops
+                        ]
                         if options:
                             self._search_results = options
                             return await self.async_step_pick_stop()

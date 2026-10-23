@@ -33,6 +33,40 @@ Intégration Home Assistant pour l'API Open Data **Tisséo** (Toulouse).
 5. Sélectionnez les **lignes** à surveiller pour les perturbations
 6. (Optionnel) Configurez un **itinéraire** de référence
 
+## Dépannage : aucun arrêt trouvé
+
+La recherche utilise l'API **v2** `places.json` avec au moins trois caractères et
+`displayOnlyStopAreas=1`. Tester uniquement `/v1/stop_areas.json` ne vérifie pas
+cette recherche. Essayez un nom comme `Esquirol` ou `Basso Cambo`.
+
+Pour consulter les journaux, ouvrez **Paramètres > Système > Journaux**, choisissez
+**Home Assistant Core**, puis affichez ou téléchargez les journaux bruts après avoir
+reproduit le problème. Si l'intégration n'est pas encore configurée, ajoutez ceci
+dans `configuration.yaml` (en complétant la section `logger` si elle existe), puis
+redémarrez Home Assistant :
+
+```yaml
+logger:
+  logs:
+    custom_components.tisseo: debug
+```
+
+Les logs indiquent le statut HTTP et le nombre de résultats reçus et utilisables.
+Pour signaler un problème, joignez le texte recherché, l'heure du test, la version
+de l'intégration et les logs correspondants. Masquez votre clé API dans tout
+extrait ou URL partagé. Désactivez ensuite le débogage.
+
+## Tests de développement
+
+```sh
+python -m pip install aiohttp voluptuous
+python -m unittest discover -s tests -v
+```
+
+Les tests utilisent des réponses API simulées et des doubles du framework Home
+Assistant pour les transitions de configuration. Ils ne remplacent pas un essai
+avec une clé Tisséo valide dans une installation Home Assistant.
+
 ## Services
 
 ### `tisseo.calculate_journey`

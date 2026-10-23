@@ -40,6 +40,7 @@ class TisseoClient:
             async with self._session.get(
                 url, params=req_params, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
             ) as resp:
+                _LOGGER.debug("Tisséo API %s returned HTTP %s", endpoint, resp.status)
                 if resp.status in (401, 403):
                     raise TisseoAuthError("Invalid API key")
                 resp.raise_for_status()
@@ -48,16 +49,23 @@ class TisseoClient:
                 except aiohttp.ContentTypeError:
                     text = await resp.text()
                     if "No key provided" in text:
-                        raise TisseoAuthError("No API key provided")
-                    raise TisseoAPIError(f"Unexpected response: {text}")
+                        raise TisseoAuthError("No API key provided") from None
+                    raise TisseoAPIError("Unexpected non-JSON API response") from None
+                except ValueError:
+                    raise TisseoAPIError("Invalid JSON API response") from None
 
                 if isinstance(data, dict) and data.get("message") == "No key provided":
                     raise TisseoAuthError("No API key provided")
+                if not isinstance(data, dict):
+                    raise TisseoAPIError("Unexpected API response structure")
                 return data
+        except TimeoutError:
+            raise TisseoAPIError("API request timed out") from None
         except aiohttp.ClientResponseError as err:
-            raise TisseoAPIError(f"HTTP {err.status}: {err.message}") from err
+            raise TisseoAPIError(f"HTTP {err.status}") from None
         except aiohttp.ClientError as err:
-            raise TisseoAPIError(f"Connection error: {err}") from err
+            # aiohttp exception strings can contain the request URL and API key.
+            raise TisseoAPIError(f"Connection error ({type(err).__name__})") from None
 
     async def get_networks(self) -> dict[str, Any]:
         """Get available networks."""
@@ -114,6 +122,59 @@ class TisseoClient:
         if display_only_stop_areas:
             params["displayOnlyStopAreas"] = 1
         return await self._request("places", params)
+
+    async def search_stop_areas(self, term: str) -> list[dict[str, str]]:
+        """Return stop areas from the places service, independent of its envelope."""
+        data = await self.get_places(
+            term=term, number=10, display_only_stop_areas=True
+        )
+        if "placesList" not in data and "places" not in data:
+            raise TisseoAPIError("Missing places in API response")
+        # The placesList/place envelope contains flat stop objects. Also accept
+        # places responses and the nested stopArea objects used by older clients.
+        raw_places = data.get("placesList", data.get("places", []))
+        if isinstance(raw_places, dict) and "place" in raw_places:
+            raw_places = raw_places["place"]
+        if isinstance(raw_places, dict):
+            raw_places = [raw_places]
+        if not isinstance(raw_places, list):
+            raise TisseoAPIError("Unexpected places response structure")
+
+        stops = []
+        seen = set()
+        for place in raw_places:
+            if not isinstance(place, dict):
+                continue
+            stop = place.get("stopArea", place)
+            if not isinstance(stop, dict):
+                continue
+            stop_id = stop.get("id")
+            name = stop.get("name") or stop.get("label")
+            if not isinstance(stop_id, str) or not stop_id:
+                continue
+            if not isinstance(name, str) or not name:
+                continue
+            if stop_id.startswith("stop_point:") or stop.get("type") == "stop_point":
+                continue
+            if "stopArea" not in place and not (
+                stop_id.startswith("stop_area:")
+                or stop.get("type") == "stop_area"
+                or stop.get("className") == "stop"
+            ):
+                continue
+            if stop_id in seen:
+                continue
+            seen.add(stop_id)
+            stops.append(
+                {"id": stop_id, "name": name, "cityName": stop.get("cityName") or ""}
+            )
+
+        # Do not log the key, request URL, search text, or response body.
+        _LOGGER.debug(
+            "Places search returned %s entries and %s usable stop areas",
+            len(raw_places), len(stops),
+        )
+        return stops
 
     async def get_lines(
         self,
