@@ -108,8 +108,22 @@ class RequestTests(unittest.IsolatedAsyncioTestCase):
         response.raise_for_status.side_effect = aiohttp.ClientResponseError(
             MagicMock(), (), status=500, message="secret-key"
         )
-        with self.assertRaisesRegex(api.TisseoAPIError, "^HTTP 500$"):
+        with self.assertRaisesRegex(api.TisseoAPIError, "^networks: HTTP 500$"):
             await client.get_networks()
+
+    async def test_http_400_reports_endpoint_without_debug_logging(self):
+        client, response = self.make_client(400)
+        response.raise_for_status.side_effect = aiohttp.ClientResponseError(
+            MagicMock(), (), status=400, message="secret-key"
+        )
+        with self.assertLogs(api._LOGGER, level="WARNING") as logs:
+            with self.assertRaisesRegex(
+                api.TisseoAPIError, "^stops_schedules: HTTP 400$"
+            ):
+                await client.get_stop_schedules(stop_area_id="stop_area:SA_206")
+        self.assertIn("stops_schedules failed: HTTP 400", "\n".join(logs.output))
+        for sensitive in ("secret-key", "stop_area:SA_206", "https://"):
+            self.assertNotIn(sensitive, "\n".join(logs.output))
 
     async def test_invalid_json_and_content_types(self):
         for failure in (ValueError("secret-key"),
