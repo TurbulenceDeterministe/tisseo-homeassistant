@@ -51,7 +51,13 @@ logger:
     custom_components.tisseo: debug
 ```
 
-Les logs indiquent le statut HTTP et le nombre de résultats reçus et utilisables.
+En cas d'échec du premier chargement, le message affiché dans la fiche de
+l'intégration indique directement l'appel concerné, par exemple
+`API error: stops_schedules: HTTP 400`. Copiez ce message pour le diagnostic :
+il est disponible sans activer le débogage. Les échecs API sont aussi journalisés
+au niveau avertissement.
+
+Les logs de débogage indiquent le statut HTTP et le nombre de résultats reçus et utilisables.
 Pour signaler un problème, joignez le texte recherché, l'heure du test, la version
 de l'intégration et les logs correspondants. Masquez votre clé API dans tout
 extrait ou URL partagé. Désactivez ensuite le débogage.

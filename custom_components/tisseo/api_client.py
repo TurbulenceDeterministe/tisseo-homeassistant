@@ -36,6 +36,7 @@ class TisseoClient:
         if params:
             req_params.update(params)
 
+        error_type = TisseoAPIError
         try:
             async with self._session.get(
                 url, params=req_params, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
@@ -59,13 +60,24 @@ class TisseoClient:
                 if not isinstance(data, dict):
                     raise TisseoAPIError("Unexpected API response structure")
                 return data
+        except TisseoAuthError as err:
+            error_type = TisseoAuthError
+            reason = str(err)
+        except TisseoAPIError as err:
+            reason = str(err)
         except TimeoutError:
-            raise TisseoAPIError("API request timed out") from None
+            reason = "API request timed out"
         except aiohttp.ClientResponseError as err:
-            raise TisseoAPIError(f"HTTP {err.status}") from None
+            reason = f"HTTP {err.status}"
         except aiohttp.ClientError as err:
             # aiohttp exception strings can contain the request URL and API key.
-            raise TisseoAPIError(f"Connection error ({type(err).__name__})") from None
+            reason = f"Connection error ({type(err).__name__})"
+
+        # Failed first refreshes are surfaced by Home Assistant in the entry's
+        # setup error. Include the endpoint there and in default-level logs,
+        # without exposing the URL, parameters, or response body.
+        _LOGGER.warning("Tisséo API %s failed: %s", endpoint, reason)
+        raise error_type(f"{endpoint}: {reason}") from None
 
     async def get_networks(self) -> dict[str, Any]:
         """Get available networks."""
